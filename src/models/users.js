@@ -1,7 +1,8 @@
 const mongoose = require('mongoose')
 const validator = require('validator')
-
 const bcrypt = require('bcryptjs')
+const jwt = require('jsonwebtoken')
+const Tasks = require('./tasks')
 
 const userSchema = new mongoose.Schema({
     name: {
@@ -39,11 +40,48 @@ const userSchema = new mongoose.Schema({
                 throw new Error('Age Must be a Positive number')
             }
         }
+    },
+    tokens: [{
+        token: {
+            type: String,
+            required: true
+        }
+    }], 
+    avatar : {
+        type: Buffer
     }
+}, {
+    timestamps: true
 })
 
+userSchema.virtual('tasks', {
+    ref: 'Tasks',
+    localField: '_id',
+    foreignField: 'owner'
+})
+
+userSchema.methods.generateAuthToken = async function () {
+    const user = this
+    console.log(user)
+    const token = jwt.sign({ _id: user._id.toString() }, 'thisismynewcourse')
+    user.tokens = user.tokens.concat({ token })
+    await user.save()
+    return token
+}
+
+userSchema.methods.toJSON = function () {
+    const user = this
+    const userObject = user.toObject()
+
+    delete userObject.password
+    delete userObject.tokens
+    delete userObject.avatar
+
+    return userObject
+}
+
 userSchema.statics.findByCredentials = async (email, password) => {
-    const user = User.findOne({ email })
+    const user = await User.findOne({ email })
 
     if (!user) {
         throw new Error('Unable to login')
@@ -59,6 +97,8 @@ userSchema.statics.findByCredentials = async (email, password) => {
 }
 
 
+
+
 // Hash the Plain text password before saving and update
 userSchema.pre('save', async function (next) {
     const user = this
@@ -69,6 +109,14 @@ userSchema.pre('save', async function (next) {
 
     next()
 })
+
+// Delete User Tasks when User delete their account
+userSchema.pre('remove', async function (next) {
+    const user = this
+    await Tasks.deleteMany({ owner: user._id })
+    next()
+})
+
 
 const User = mongoose.model('User', userSchema)
 
