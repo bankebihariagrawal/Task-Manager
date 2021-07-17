@@ -1,5 +1,5 @@
-require('../src/db/mongoose')
-const User = require('../src/models/users')
+require('../Task-Manager-Revise/src/db/mongoose')
+const User = require('../Task-Manager-Revise/src/models/users')
 
 
 // User.findByIdAndUpdate('60cd97de58bdda37acb5d576', { age: 19 }).then((user) => {
